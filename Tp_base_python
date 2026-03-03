@@ -1,0 +1,132 @@
+donnees = [
+    ("Sara", "Math", 12, "G1"),
+    ("Sara", "Info", 14, "G1"),
+    ("Ahmed", "Math", 9, "G2"),
+    ("Adam", "Chimie", 18, "G1"),
+    ("Sara", "Math", 11, "G1"),
+    ("Bouchra", "Info", "abc", "G2"),
+    ("", "Math", 10, "G1"),
+    ("Yassine", "Info", 22, "G2"),
+    ("Ahmed", "Info", 13, "G2"),
+    ("Adam", "Math", None, "G1"),
+    ("Sara", "Chimie", 16, "G1"),
+    ("Adam", "Info", 7, "G1"),
+    ("Ahmed", "Math", 9, "G2"),
+    ("Hana", "Physique", 15, "G3"),
+    ("Hana", "Math", 8, "G3"),
+]
+
+def valider(enregistrement):
+    nom, matiere, note, groupe = enregistrement
+
+    if not nom:
+        return False, "Nom vide"
+    if not matiere:
+        return False, "Matière vide"
+    if not groupe:
+        return False, "Groupe vide"
+    if not isinstance(note, (int, float)):
+        return False, "Note non numérique"
+    if note < 0 or note > 20:
+        return False, "Note hors intervalle"
+
+    return True, ""
+
+valides = []
+erreurs = []
+doublons_exact = set()
+vus = set()
+
+for ligne in donnees:
+    ok, raison = valider(ligne)
+    if ok:
+        ligne_nettoyee = (ligne[0], ligne[1], float(ligne[2]), ligne[3])
+        if ligne_nettoyee in vus:
+            doublons_exact.add(ligne_nettoyee)
+        else:
+            valides.append(ligne_nettoyee)
+            vus.add(ligne_nettoyee)
+    else:
+        erreurs.append({"ligne": ligne, "raison": raison})
+
+matieres = set()
+etudiants = {}
+groupes = {}
+
+for nom, matiere, note, groupe in valides:
+    matieres.add(matiere)
+
+    if nom not in etudiants:
+        etudiants[nom] = {}
+    if matiere not in etudiants[nom]:
+        etudiants[nom][matiere] = []
+    etudiants[nom][matiere].append(note)
+
+    if groupe not in groupes:
+        groupes[groupe] = set()
+    groupes[groupe].add(nom)
+
+def somme_recursive(liste):
+    if not liste:
+        return 0
+    return liste[0] + somme_recursive(liste[1:])
+
+def moyenne(liste):
+    if not liste:
+        return 0
+    return somme_recursive(liste) / len(liste)
+
+moyennes_etudiants = {}
+moyennes_par_matiere = {}
+
+for nom in etudiants:
+    toutes_notes = []
+    moyennes_par_matiere[nom] = {}
+    for matiere in etudiants[nom]:
+        notes = etudiants[nom][matiere]
+        moyennes_par_matiere[nom][matiere] = moyenne(notes)
+        toutes_notes.extend(notes)
+    moyennes_etudiants[nom] = moyenne(toutes_notes)
+
+alertes = {
+    "doublons_meme_matiere": [],
+    "profil_incomplet": [],
+    "groupes_faibles": [],
+    "ecart_important": []
+}
+
+for nom in etudiants:
+    for matiere in etudiants[nom]:
+        if len(etudiants[nom][matiere]) > 1:
+            alertes["doublons_meme_matiere"].append((nom, matiere))
+
+for nom in etudiants:
+    if set(etudiants[nom].keys()) != matieres:
+        alertes["profil_incomplet"].append(nom)
+
+seuil = 10
+for groupe in groupes:
+    notes_groupe = []
+    for nom in groupes[groupe]:
+        notes_groupe.extend(
+            [note for mat in etudiants.get(nom, {}) for note in etudiants[nom][mat]]
+        )
+    if moyenne(notes_groupe) < seuil:
+        alertes["groupes_faibles"].append(groupe)
+
+for nom in etudiants:
+    toutes_notes = []
+    for mat in etudiants[nom]:
+        toutes_notes.extend(etudiants[nom][mat])
+    if toutes_notes and (max(toutes_notes) - min(toutes_notes)) > 10:
+        alertes["ecart_important"].append(nom)
+
+print("Valides :", valides)
+print("Erreurs :", erreurs)
+print("Doublons exacts :", doublons_exact)
+print("Matières :", matieres)
+print("Étudiants :", etudiants)
+print("Groupes :", groupes)
+print("Moyennes étudiants :", moyennes_etudiants)
+print("Moyennes par matière :", moyennes_par_matiere)
+print("Alertes :", alertes)
